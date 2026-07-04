@@ -1,0 +1,182 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int           @id @default(autoincrement())
+  name        String
+  email       String        @unique
+  password    String
+  role        Role
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  kampusId    Int?          @map("kampus_id")
+  ratings     Rating[]
+  rekomendasi Rekomendasi[]
+  kampus      Kampus?       @relation(fields: [kampusId], references: [id])
+
+  @@index([kampusId])
+  @@map("users")
+}
+
+model Bidang {
+  id          Int           @id @default(autoincrement())
+  nama        String
+  deskripsi   String?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  perusahaan  Perusahaan[]
+  rekomendasi Rekomendasi[]
+
+  @@map("bidang")
+}
+
+model Perusahaan {
+  id               Int                @id @default(autoincrement())
+  nama             String
+  deskripsi        String?
+  alamat           String
+  kota             String
+  modeKerja        ModeKerja          @map("mode_kerja")
+  image            String?
+  bidangId         Int                @map("bidang_id")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  kampusId         Int                @map("kampus_id")
+  hasilRekomendasi HasilRekomendasi[]
+  nilaiKriteria    NilaiKriteria[]
+  kampus           Kampus             @relation(fields: [kampusId], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_perusahaan_kampus")
+  bidang           Bidang             @relation(fields: [bidangId], references: [id], onDelete: Cascade)
+  ratings          Rating[]
+
+  @@index([kota])
+  @@index([modeKerja])
+  @@index([bidangId])
+  @@index([kampusId], map: "fk_perusahaan_kampus")
+  @@map("perusahaan")
+}
+
+model Kriteria {
+  id               Int                @id @default(autoincrement())
+  kode             String             @unique
+  nama             String
+  tipe             TipeKriteria
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  bobotRekomendasi BobotRekomendasi[]
+  nilaiKriteria    NilaiKriteria[]
+
+  @@map("kriteria")
+}
+
+model NilaiKriteria {
+  id           Int        @id @default(autoincrement())
+  perusahaanId Int        @map("perusahaan_id")
+  kriteriaId   Int        @map("kriteria_id")
+  nilaiSkala   Int        @map("nilai_skala")
+  kriteria     Kriteria   @relation(fields: [kriteriaId], references: [id], onDelete: Cascade)
+  perusahaan   Perusahaan @relation(fields: [perusahaanId], references: [id], onDelete: Cascade)
+
+  @@unique([perusahaanId, kriteriaId])
+  @@index([kriteriaId], map: "nilai_kriteria_kriteria_id_fkey")
+  @@map("nilai_kriteria")
+}
+
+model Rekomendasi {
+  id               Int                @id @default(autoincrement())
+  userId           Int                @map("user_id")
+  bidangId         Int                @map("bidang_id")
+  kotaFilter       String             @map("kota_filter")
+  modeFilter       ModeKerja          @map("mode_filter")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  bobotRekomendasi BobotRekomendasi[]
+  hasilRekomendasi HasilRekomendasi[]
+  bidang           Bidang             @relation(fields: [bidangId], references: [id])
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bidangId], map: "rekomendasi_bidang_id_fkey")
+  @@index([userId], map: "rekomendasi_user_id_fkey")
+  @@map("rekomendasi")
+}
+
+model BobotRekomendasi {
+  id            Int         @id @default(autoincrement())
+  rekomendasiId Int         @map("rekomendasi_id")
+  kriteriaId    Int         @map("kriteria_id")
+  bobot         Float
+  kriteria      Kriteria    @relation(fields: [kriteriaId], references: [id])
+  rekomendasi   Rekomendasi @relation(fields: [rekomendasiId], references: [id], onDelete: Cascade)
+
+  @@unique([rekomendasiId, kriteriaId])
+  @@index([kriteriaId], map: "bobot_rekomendasi_kriteria_id_fkey")
+  @@map("bobot_rekomendasi")
+}
+
+model HasilRekomendasi {
+  id            Int         @id @default(autoincrement())
+  rekomendasiId Int         @map("rekomendasi_id")
+  perusahaanId  Int         @map("perusahaan_id")
+  nilai         Float
+  ranking       Int
+  perusahaan    Perusahaan  @relation(fields: [perusahaanId], references: [id])
+  rekomendasi   Rekomendasi @relation(fields: [rekomendasiId], references: [id], onDelete: Cascade)
+
+  @@unique([rekomendasiId, perusahaanId])
+  @@index([perusahaanId], map: "hasil_rekomendasi_perusahaan_id_fkey")
+  @@map("hasil_rekomendasi")
+}
+
+model Rating {
+  id           Int        @id @default(autoincrement())
+  userId       Int        @map("user_id")
+  perusahaanId Int        @map("perusahaan_id")
+  rating       Int
+  review       String?    @db.Text
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  perusahaan   Perusahaan @relation(fields: [perusahaanId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, perusahaanId])
+  @@index([userId])
+  @@index([perusahaanId])
+  @@map("rating")
+}
+
+model Kampus {
+  id         Int          @id @default(autoincrement())
+  nama       String       @unique
+  alamat     String?
+  kota       String?
+  logo       String?
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  perusahaan Perusahaan[]
+  users      User[]
+
+  @@map("kampus")
+}
+
+enum Role {
+  ADMIN
+  MAHASISWA
+  SUPER_ADMIN
+}
+
+enum ModeKerja {
+  WFO
+  WFH
+  HYBRID
+  REMOTE
+}
+
+enum TipeKriteria {
+  BENEFIT
+  COST
+}
